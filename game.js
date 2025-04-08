@@ -395,4 +395,167 @@ window.addEventListener('resize', () => {
 
 // Run the engine
 Engine.run(engine);
-Render.run(render); 
+Render.run(render);
+
+// Add CSS to ensure proper display
+document.body.style.margin = '0';
+document.body.style.padding = '0';
+document.body.style.overflow = 'hidden';
+
+// Game state
+let isEditMode = false;
+let selectedBlockColor = blockColors[0];
+let isDraggingNewBlock = false;
+let tempBlock = null;
+
+// Create edit mode controls
+const createEditControls = () => {
+    // Create edit mode container
+    const editControls = document.createElement('div');
+    editControls.id = 'editControls';
+    editControls.style.position = 'fixed';
+    editControls.style.top = '10px';
+    editControls.style.left = '10px';
+    editControls.style.padding = '10px';
+    editControls.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    editControls.style.borderRadius = '5px';
+    editControls.style.display = 'none';
+    editControls.style.zIndex = '1000';
+    editControls.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+
+    // Create color selector
+    const colorContainer = document.createElement('div');
+    colorContainer.style.marginBottom = '10px';
+    colorContainer.style.display = 'flex';
+    colorContainer.style.gap = '5px';
+    colorContainer.style.flexWrap = 'wrap';
+
+    blockColors.forEach(color => {
+        const colorBtn = document.createElement('button');
+        colorBtn.style.width = '30px';
+        colorBtn.style.height = '30px';
+        colorBtn.style.backgroundColor = color;
+        colorBtn.style.border = '2px solid transparent';
+        colorBtn.style.borderRadius = '4px';
+        colorBtn.style.cursor = 'pointer';
+        colorBtn.onclick = () => {
+            selectedBlockColor = color;
+            // Reset all borders
+            colorContainer.querySelectorAll('button').forEach(btn =>
+                btn.style.border = '2px solid transparent'
+            );
+            // Highlight selected color
+            colorBtn.style.border = '2px solid black';
+        };
+        colorContainer.appendChild(colorBtn);
+    });
+    editControls.appendChild(colorContainer);
+
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '5px';
+
+    // Add "Done" button
+    const doneBtn = document.createElement('button');
+    doneBtn.textContent = 'Done';
+    doneBtn.style.padding = '8px 16px';
+    doneBtn.style.backgroundColor = '#4CAF50';
+    doneBtn.style.color = 'white';
+    doneBtn.style.border = 'none';
+    doneBtn.style.borderRadius = '4px';
+    doneBtn.style.cursor = 'pointer';
+    doneBtn.onclick = () => toggleEditMode(false);
+    buttonContainer.appendChild(doneBtn);
+
+    // Add "Clear All" button
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clear All';
+    clearBtn.style.padding = '8px 16px';
+    clearBtn.style.backgroundColor = '#f44336';
+    clearBtn.style.color = 'white';
+    clearBtn.style.border = 'none';
+    clearBtn.style.borderRadius = '4px';
+    clearBtn.style.cursor = 'pointer';
+    clearBtn.onclick = () => {
+        blocks.forEach(block => World.remove(world, block));
+        blocks.length = 0;
+    };
+    buttonContainer.appendChild(clearBtn);
+
+    editControls.appendChild(buttonContainer);
+    document.body.appendChild(editControls);
+
+    // Create edit mode toggle button
+    const editButton = document.createElement('button');
+    editButton.id = 'editButton';
+    editButton.textContent = 'Edit Level';
+    editButton.style.position = 'fixed';
+    editButton.style.top = '10px';
+    editButton.style.right = '10px';
+    editButton.style.padding = '8px 16px';
+    editButton.style.backgroundColor = '#2196F3';
+    editButton.style.color = 'white';
+    editButton.style.border = 'none';
+    editButton.style.borderRadius = '4px';
+    editButton.style.cursor = 'pointer';
+    editButton.style.zIndex = '1000';
+    editButton.onclick = () => toggleEditMode(true);
+    document.body.appendChild(editButton);
+};
+
+// Toggle edit mode
+const toggleEditMode = (enable) => {
+    isEditMode = enable;
+    const editControls = document.getElementById('editControls');
+    const resetButton = document.getElementById('resetButton');
+    const editButton = document.getElementById('editButton');
+
+    editControls.style.display = enable ? 'block' : 'none';
+    resetButton.style.display = enable ? 'none' : 'block';
+    editButton.style.display = enable ? 'none' : 'block';
+
+    if (enable) {
+        // Remove ball and sling in edit mode
+        if (ball && !ballLaunched) World.remove(world, ball);
+        if (sling) World.remove(world, sling);
+    } else {
+        // Restore game state
+        resetGame();
+    }
+};
+
+// Modify mouse events to handle edit mode
+Events.on(mouseConstraint, 'mousedown', function (event) {
+    if (isEditMode && !isDraggingNewBlock) {
+        const mousePosition = mouse.position;
+        tempBlock = Bodies.rectangle(
+            mousePosition.x,
+            mousePosition.y,
+            45 * gameDimensions.scale,
+            45 * gameDimensions.scale,
+            {
+                render: { fillStyle: selectedBlockColor }
+            }
+        );
+        World.add(world, tempBlock);
+        isDraggingNewBlock = true;
+    }
+});
+
+Events.on(mouseConstraint, 'mousemove', function (event) {
+    if (isEditMode && isDraggingNewBlock && tempBlock) {
+        Body.setPosition(tempBlock, mouse.position);
+    }
+});
+
+Events.on(mouseConstraint, 'mouseup', function (event) {
+    if (isEditMode && isDraggingNewBlock && tempBlock) {
+        blocks.push(tempBlock);
+        isDraggingNewBlock = false;
+        tempBlock = null;
+    }
+});
+
+// Add edit controls to initialization
+createEditControls(); 
