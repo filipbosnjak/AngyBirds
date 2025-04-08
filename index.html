@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Angry Birds Style Game</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -17,9 +18,7 @@
             overflow: hidden;
         }
         .game-container {
-            position: fixed;
-            top: 0;
-            left: 0;
+            position: relative;
             width: 100vw;
             height: 100vh;
             display: flex;
@@ -45,11 +44,42 @@
             background-position: center;
             image-rendering: pixelated;
         }
+        #resetButton {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        #resetButton:hover {
+            background-color: rgba(255, 255, 255, 1);
+            transform: scale(1.05);
+        }
+        #resetButton:active {
+            transform: scale(0.95);
+        }
+        #resetButton .material-icons {
+            font-size: 24px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div class="game-container">
         <div class="background"></div>
+        <button id="resetButton">
+            <span class="material-icons">refresh</span>
+        </button>
         <canvas id="gameCanvas"></canvas>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>

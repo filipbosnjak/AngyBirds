@@ -42,7 +42,7 @@ const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 10, 
 });
 
 // Create the ball (bird)
-const ball = Bodies.circle(150, window.innerHeight - 200, 20, {
+let ball = Bodies.circle(250, window.innerHeight - 200, 20, {
     density: 0.004,
     restitution: 0.6,
     friction: 0.1,
@@ -50,8 +50,8 @@ const ball = Bodies.circle(150, window.innerHeight - 200, 20, {
 });
 
 // Create the slingshot
-const sling = Constraint.create({
-    pointA: { x: 150, y: window.innerHeight - 200 },
+let sling = Constraint.create({
+    pointA: { x: 250, y: window.innerHeight - 200 },
     bodyB: ball,
     stiffness: 0.01,
     damping: 0.001,
@@ -105,7 +105,7 @@ Events.on(mouseConstraint, 'startdrag', function (event) {
 // Event listener for mouse drag
 Events.on(mouseConstraint, 'mousemove', function (event) {
     if (!ballLaunched && mouseConstraint.body === ball) {
-        const anchorX = 150;
+        const anchorX = 250;
         const anchorY = window.innerHeight - 200;
 
         // Record initial pull direction if not set
@@ -151,7 +151,7 @@ Events.on(mouseConstraint, 'mousemove', function (event) {
 Events.on(mouseConstraint, 'enddrag', function(event) {
     if (event.body === ball && !ballLaunched) {
         ballLaunched = true;
-        const anchorX = 150;
+        const anchorX = 250;
         const anchorY = window.innerHeight - 200;
         const pullDistance = {
             x: ball.position.x - anchorX,
@@ -175,39 +175,65 @@ Events.on(mouseConstraint, 'enddrag', function(event) {
 
 // Reset game function
 const resetGame = () => {
+    // Remove old ball and blocks
     World.remove(world, ball);
-    const newBall = Bodies.circle(150, window.innerHeight - 200, 20, {
+    blocks.forEach(block => World.remove(world, block));
+    blocks.length = 0;  // Clear the blocks array
+
+    // Create new ball
+    const newBall = Bodies.circle(250, window.innerHeight - 200, 20, {
         density: 0.004,
         restitution: 0.6,
         friction: 0.1,
         render: { fillStyle: '#e74c3c' }
     });
     
+    // Create new sling
     const newSling = Constraint.create({
-        pointA: { x: 150, y: window.innerHeight - 200 },
+        pointA: { x: 250, y: window.innerHeight - 200 },
         bodyB: newBall,
         stiffness: 0.01,
         damping: 0.001,
         length: 0
     });
+
+    // Recreate pyramid structure
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4 - i; j++) {
+            const block = Bodies.rectangle(
+                window.innerWidth - 300 + j * 50 + i * 25,
+                window.innerHeight - 100 - i * 50,
+                40,
+                40,
+                {
+                    render: { fillStyle: blockColors[i] }
+                }
+            );
+            blocks.push(block);
+        }
+    }
     
-    World.add(world, [newBall, newSling]);
+    // Add all new objects to the world
+    World.add(world, [newBall, newSling, ...blocks]);
     ballLaunched = false;
+    initialPull = null;
+
+    // Update the ball reference for the event handlers
+    mouseConstraint.body = null;
+    ball = newBall;
+    sling = newSling;
 };
 
-// Add reset functionality on 'R' key press
+// Add reset functionality on 'R' key press and button click
 document.addEventListener('keydown', (event) => {
     if (event.key.toLowerCase() === 'r') {
         resetGame();
     }
 });
 
+const resetButton = document.getElementById('resetButton');
+resetButton.addEventListener('click', resetGame);
+
 // Run the engine
 Engine.run(engine);
-Render.run(render);
-
-// Add instructions text
-const ctx = render.context;
-ctx.font = '16px Arial';
-ctx.fillStyle = '#000';
-ctx.fillText('Drag the red ball to launch. Press R to reset.', 20, 30); 
+Render.run(render); 
