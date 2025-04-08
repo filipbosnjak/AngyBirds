@@ -241,10 +241,13 @@ Events.on(mouseConstraint, 'enddrag', function(event) {
 
 // Reset game function
 const resetGame = () => {
-    // Remove old ball and blocks
+    // Remove old ball
     World.remove(world, ball);
-    blocks.forEach(block => World.remove(world, block));
-    blocks.length = 0;
+
+    // Only clear blocks if we're not in edit mode and there are no blocks
+    if (!isEditMode && blocks.length === 0) {
+        createBlocks();
+    }
 
     // Create new ball at the correct height
     const newBall = Bodies.circle(
@@ -270,12 +273,9 @@ const resetGame = () => {
         damping: 0.001,
         length: 0
     });
-
-    // Recreate blocks
-    createBlocks();
     
-    // Add all new objects to the world
-    World.add(world, [newBall, newSling, ...blocks]);
+    // Add new ball and sling to the world
+    World.add(world, [newBall, newSling]);
     ballLaunched = false;
     initialPull = null;
 
