@@ -405,8 +405,50 @@ document.body.style.overflow = 'hidden';
 // Game state
 let isEditMode = false;
 let selectedBlockColor = blockColors[0];
+let selectedBlockShape = 'square'; // Default shape
 let isDraggingNewBlock = false;
 let tempBlock = null;
+
+// Block shapes configuration
+const blockShapes = {
+    square: {
+        width: 45,
+        height: 45,
+        name: 'Square'
+    },
+    rectangle: {
+        width: 90,
+        height: 30,
+        name: 'Rectangle'
+    },
+    longBoard: {
+        width: 120,
+        height: 20,
+        name: 'Long Board'
+    },
+    tallRect: {
+        width: 30,
+        height: 90,
+        name: 'Tall Rectangle'
+    }
+};
+
+// Create block based on selected shape
+const createBlock = (x, y, color, shape = selectedBlockShape) => {
+    const shapeConfig = blockShapes[shape];
+    return Bodies.rectangle(
+        x,
+        y,
+        shapeConfig.width * gameDimensions.scale,
+        shapeConfig.height * gameDimensions.scale,
+        {
+            render: { fillStyle: color },
+            density: 0.001,
+            friction: 0.5,
+            restitution: 0.2
+        }
+    );
+};
 
 // Create edit mode controls
 const createEditControls = () => {
@@ -422,6 +464,38 @@ const createEditControls = () => {
     editControls.style.display = 'none';
     editControls.style.zIndex = '1000';
     editControls.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+
+    // Create shape selector
+    const shapeContainer = document.createElement('div');
+    shapeContainer.style.marginBottom = '10px';
+    shapeContainer.style.display = 'flex';
+    shapeContainer.style.gap = '5px';
+    shapeContainer.style.flexWrap = 'wrap';
+
+    Object.entries(blockShapes).forEach(([shapeKey, shapeConfig]) => {
+        const shapeBtn = document.createElement('button');
+        shapeBtn.textContent = shapeConfig.name;
+        shapeBtn.style.padding = '5px 10px';
+        shapeBtn.style.backgroundColor = '#e0e0e0';
+        shapeBtn.style.border = '2px solid transparent';
+        shapeBtn.style.borderRadius = '4px';
+        shapeBtn.style.cursor = 'pointer';
+        shapeBtn.style.fontSize = '12px';
+        if (shapeKey === selectedBlockShape) {
+            shapeBtn.style.border = '2px solid black';
+        }
+        shapeBtn.onclick = () => {
+            selectedBlockShape = shapeKey;
+            // Reset all borders
+            shapeContainer.querySelectorAll('button').forEach(btn =>
+                btn.style.border = '2px solid transparent'
+            );
+            // Highlight selected shape
+            shapeBtn.style.border = '2px solid black';
+        };
+        shapeContainer.appendChild(shapeBtn);
+    });
+    editControls.appendChild(shapeContainer);
 
     // Create color selector
     const colorContainer = document.createElement('div');
@@ -529,15 +603,7 @@ const toggleEditMode = (enable) => {
 Events.on(mouseConstraint, 'mousedown', function (event) {
     if (isEditMode && !isDraggingNewBlock) {
         const mousePosition = mouse.position;
-        tempBlock = Bodies.rectangle(
-            mousePosition.x,
-            mousePosition.y,
-            45 * gameDimensions.scale,
-            45 * gameDimensions.scale,
-            {
-                render: { fillStyle: selectedBlockColor }
-            }
-        );
+        tempBlock = createBlock(mousePosition.x, mousePosition.y, selectedBlockColor);
         World.add(world, tempBlock);
         isDraggingNewBlock = true;
     }
