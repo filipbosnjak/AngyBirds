@@ -13,6 +13,11 @@ const Events = Matter.Events;
 const engine = Engine.create();
 const world = engine.world;
 
+// Get the actual viewport height for mobile
+const getViewportHeight = () => {
+    return Math.min(window.innerHeight, document.documentElement.clientHeight);
+};
+
 // Create renderer
 const canvas = document.getElementById('gameCanvas');
 const render = Render.create({
@@ -20,38 +25,61 @@ const render = Render.create({
     engine: engine,
     options: {
         width: window.innerWidth,
-        height: window.innerHeight,
+        height: getViewportHeight(),
         wireframes: false,
         background: 'transparent',
         pixelRatio: window.devicePixelRatio
     }
 });
 
-// Handle window resize
-window.addEventListener('resize', () => {
-    render.canvas.width = window.innerWidth;
-    render.canvas.height = window.innerHeight;
-    render.options.width = window.innerWidth;
-    render.options.height = window.innerHeight;
-});
+// Calculate positions based on viewport
+const getGameDimensions = () => {
+    const width = window.innerWidth;
+    const height = getViewportHeight();
+    const scale = Math.min(width / 800, height / 600); // Base scale on reference size
+    return {
+        width,
+        height,
+        scale,
+        baseHeight: height - (height * 0.2), // 20% from bottom
+        blockBaseX: width * 0.7, // 70% from left
+        slingX: width * 0.2 // 20% from left
+    };
+};
 
-// Create ground
-const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 10, window.innerWidth, 20, { 
-    isStatic: true,
-    render: { fillStyle: '#2c3e50' }
-});
+let gameDimensions = getGameDimensions();
+
+// Create ground with proper dimensions
+const ground = Bodies.rectangle(
+    gameDimensions.width / 2,
+    gameDimensions.height - 10,
+    gameDimensions.width,
+    20,
+    {
+        isStatic: true,
+        render: { fillStyle: '#2c3e50' }
+    }
+);
 
 // Create the ball (bird)
-let ball = Bodies.circle(250, window.innerHeight - 200, 20, {
-    density: 0.004,
-    restitution: 0.6,
-    friction: 0.1,
-    render: { fillStyle: '#e74c3c' }
-});
+let ball = Bodies.circle(
+    gameDimensions.slingX,
+    gameDimensions.baseHeight,
+    25 * gameDimensions.scale,
+    {
+        density: 0.004,
+        restitution: 0.6,
+        friction: 0.1,
+        render: { fillStyle: '#e74c3c' }
+    }
+);
 
 // Create the slingshot
 let sling = Constraint.create({
-    pointA: { x: 250, y: window.innerHeight - 200 },
+    pointA: {
+        x: gameDimensions.slingX,
+        y: gameDimensions.baseHeight
+    },
     bodyB: ball,
     stiffness: 0.01,
     damping: 0.001,
@@ -63,29 +91,67 @@ const blocks = [];
 const blockColors = ['#3498db', '#e67e22', '#2ecc71', '#9b59b6'];
 
 // Create pyramid structure
-for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4 - i; j++) {
-        const block = Bodies.rectangle(
-            window.innerWidth - 300 + j * 50 + i * 25,
-            window.innerHeight - 100 - i * 50,
-            40,
-            40,
-            {
-                render: { fillStyle: blockColors[i] }
-            }
-        );
-        blocks.push(block);
-    }
-}
+const createBlocks = () => {
+    const blockSize = 45 * gameDimensions.scale;
+    const spacing = blockSize * 1.25;
+    const baseX = gameDimensions.blockBaseX;
+    const baseY = gameDimensions.baseHeight;
 
-// Add mouse control
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4 - i; j++) {
+            const block = Bodies.rectangle(
+                baseX + j * spacing + i * (spacing / 2),
+                baseY - i * spacing,
+                blockSize,
+                blockSize,
+                {
+                    render: { fillStyle: blockColors[i] }
+                }
+            );
+            blocks.push(block);
+        }
+    }
+};
+
+createBlocks();
+
+// Add mouse/touch control
 const mouse = Mouse.create(render.canvas);
 const mouseConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
     constraint: {
         stiffness: 0.2,
         render: { visible: false }
+    },
+    collisionFilter: {
+        mask: 0x0001
     }
+});
+
+// Enable touch events in the mouse
+mouse.pixelRatio = window.devicePixelRatio;
+
+// Update mouse position based on touch
+render.canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = render.canvas.getBoundingClientRect();
+    mouse.position.x = touch.clientX - rect.left;
+    mouse.position.y = touch.clientY - rect.top;
+    mouse.mousedown = true;
+});
+
+render.canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = render.canvas.getBoundingClientRect();
+    mouse.position.x = touch.clientX - rect.left;
+    mouse.position.y = touch.clientY - rect.top;
+});
+
+render.canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    mouse.mousedown = false;
 });
 
 // Add all objects to the world
@@ -105,8 +171,8 @@ Events.on(mouseConstraint, 'startdrag', function (event) {
 // Event listener for mouse drag
 Events.on(mouseConstraint, 'mousemove', function (event) {
     if (!ballLaunched && mouseConstraint.body === ball) {
-        const anchorX = 250;
-        const anchorY = window.innerHeight - 200;
+        const anchorX = gameDimensions.slingX;
+        const anchorY = gameDimensions.baseHeight;
 
         // Record initial pull direction if not set
         if (!initialPull) {
@@ -151,8 +217,8 @@ Events.on(mouseConstraint, 'mousemove', function (event) {
 Events.on(mouseConstraint, 'enddrag', function(event) {
     if (event.body === ball && !ballLaunched) {
         ballLaunched = true;
-        const anchorX = 250;
-        const anchorY = window.innerHeight - 200;
+        const anchorX = gameDimensions.slingX;
+        const anchorY = gameDimensions.baseHeight;
         const pullDistance = {
             x: ball.position.x - anchorX,
             y: ball.position.y - anchorY
@@ -178,40 +244,35 @@ const resetGame = () => {
     // Remove old ball and blocks
     World.remove(world, ball);
     blocks.forEach(block => World.remove(world, block));
-    blocks.length = 0;  // Clear the blocks array
+    blocks.length = 0;
 
-    // Create new ball
-    const newBall = Bodies.circle(250, window.innerHeight - 200, 20, {
-        density: 0.004,
-        restitution: 0.6,
-        friction: 0.1,
-        render: { fillStyle: '#e74c3c' }
-    });
+    // Create new ball at the correct height
+    const newBall = Bodies.circle(
+        gameDimensions.slingX,
+        gameDimensions.baseHeight,
+        25 * gameDimensions.scale,
+        {
+            density: 0.004,
+            restitution: 0.6,
+            friction: 0.1,
+            render: { fillStyle: '#e74c3c' }
+        }
+    );
     
     // Create new sling
     const newSling = Constraint.create({
-        pointA: { x: 250, y: window.innerHeight - 200 },
+        pointA: {
+            x: gameDimensions.slingX,
+            y: gameDimensions.baseHeight
+        },
         bodyB: newBall,
         stiffness: 0.01,
         damping: 0.001,
         length: 0
     });
 
-    // Recreate pyramid structure
-    for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4 - i; j++) {
-            const block = Bodies.rectangle(
-                window.innerWidth - 300 + j * 50 + i * 25,
-                window.innerHeight - 100 - i * 50,
-                40,
-                40,
-                {
-                    render: { fillStyle: blockColors[i] }
-                }
-            );
-            blocks.push(block);
-        }
-    }
+    // Recreate blocks
+    createBlocks();
     
     // Add all new objects to the world
     World.add(world, [newBall, newSling, ...blocks]);
@@ -233,6 +294,31 @@ document.addEventListener('keydown', (event) => {
 
 const resetButton = document.getElementById('resetButton');
 resetButton.addEventListener('click', resetGame);
+
+// Handle window resize and orientation change
+const handleResize = () => {
+    // Wait for the viewport to settle after orientation change
+    setTimeout(() => {
+        gameDimensions = getGameDimensions();
+        const height = getViewportHeight();
+        render.canvas.width = window.innerWidth;
+        render.canvas.height = height;
+        render.options.width = window.innerWidth;
+        render.options.height = height;
+
+        // Update ground position
+        Body.setPosition(ground, {
+            x: gameDimensions.width / 2,
+            y: gameDimensions.height - 10
+        });
+
+        // Reset game to update all positions
+        resetGame();
+    }, 100);
+};
+
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', handleResize);
 
 // Run the engine
 Engine.run(engine);
