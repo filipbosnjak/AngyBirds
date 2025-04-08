@@ -297,28 +297,101 @@ resetButton.addEventListener('click', resetGame);
 
 // Handle window resize and orientation change
 const handleResize = () => {
-    // Wait for the viewport to settle after orientation change
-    setTimeout(() => {
-        gameDimensions = getGameDimensions();
-        const height = getViewportHeight();
-        render.canvas.width = window.innerWidth;
-        render.canvas.height = height;
-        render.options.width = window.innerWidth;
-        render.options.height = height;
+    // Pause the engine temporarily
+    Matter.Runner.stop(engine.runner);
 
-        // Update ground position
-        Body.setPosition(ground, {
-            x: gameDimensions.width / 2,
-            y: gameDimensions.height - 10
+    // Update dimensions
+    gameDimensions = getGameDimensions();
+    const height = getViewportHeight();
+
+    // Update render dimensions
+    render.canvas.width = window.innerWidth;
+    render.canvas.height = height;
+    render.options.width = window.innerWidth;
+    render.options.height = height;
+
+    // Store current world bodies
+    const allBodies = Matter.Composite.allBodies(world);
+
+    // Update ground position without removing it
+    Body.setPosition(ground, {
+        x: gameDimensions.width / 2,
+        y: gameDimensions.height - 10
+    });
+    Body.setVertices(ground, Bodies.rectangle(
+        gameDimensions.width / 2,
+        gameDimensions.height - 10,
+        gameDimensions.width,
+        20
+    ).vertices);
+
+    // Update ball and sling positions
+    if (!ballLaunched && ball) {
+        Body.setPosition(ball, {
+            x: gameDimensions.slingX,
+            y: gameDimensions.baseHeight
         });
+        if (sling) {
+            sling.pointA = {
+                x: gameDimensions.slingX,
+                y: gameDimensions.baseHeight
+            };
+        }
+    }
 
-        // Reset game to update all positions
-        resetGame();
-    }, 100);
+    // Update blocks positions relative to new dimensions
+    blocks.forEach((block, index) => {
+        const blockSize = 45 * gameDimensions.scale;
+        const spacing = blockSize * 1.25;
+        const row = Math.floor(index / 4);
+        const col = index % (4 - row);
+
+        Body.setPosition(block, {
+            x: gameDimensions.blockBaseX + col * spacing + row * (spacing / 2),
+            y: gameDimensions.baseHeight - row * spacing
+        });
+    });
+
+    // Update render bounds
+    render.bounds.min.x = 0;
+    render.bounds.min.y = 0;
+    render.bounds.max.x = window.innerWidth;
+    render.bounds.max.y = height;
+
+    // Update mouse
+    mouse.element = render.canvas;
+    mouse.pixelRatio = window.devicePixelRatio;
+
+    // Resume the engine
+    Matter.Runner.start(engine.runner, engine);
+
+    // Force a render update
+    Render.lookAt(render, {
+        min: { x: 0, y: 0 },
+        max: { x: window.innerWidth, y: height }
+    });
 };
 
-window.addEventListener('resize', handleResize);
-window.addEventListener('orientationchange', handleResize);
+// Handle orientation change with proper timing
+window.addEventListener('orientationchange', () => {
+    // Wait for the browser to finish orientation change
+    setTimeout(() => {
+        handleResize();
+        // Force an additional update after a short delay
+        setTimeout(() => {
+            handleResize();
+        }, 100);
+    }, 500);
+});
+
+// Add debounced resize handler
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        handleResize();
+    }, 250);
+});
 
 // Run the engine
 Engine.run(engine);
