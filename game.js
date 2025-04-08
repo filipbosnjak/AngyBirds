@@ -19,21 +19,30 @@ const render = Render.create({
     canvas: canvas,
     engine: engine,
     options: {
-        width: 800,
-        height: 600,
+        width: window.innerWidth,
+        height: window.innerHeight,
         wireframes: false,
-        background: '#87CEEB'
+        background: 'transparent',
+        pixelRatio: window.devicePixelRatio
     }
 });
 
+// Handle window resize
+window.addEventListener('resize', () => {
+    render.canvas.width = window.innerWidth;
+    render.canvas.height = window.innerHeight;
+    render.options.width = window.innerWidth;
+    render.options.height = window.innerHeight;
+});
+
 // Create ground
-const ground = Bodies.rectangle(400, 590, 810, 20, { 
+const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 10, window.innerWidth, 20, { 
     isStatic: true,
     render: { fillStyle: '#2c3e50' }
 });
 
 // Create the ball (bird)
-const ball = Bodies.circle(150, 400, 20, {
+const ball = Bodies.circle(150, window.innerHeight - 200, 20, {
     density: 0.004,
     restitution: 0.6,
     friction: 0.1,
@@ -42,7 +51,7 @@ const ball = Bodies.circle(150, 400, 20, {
 
 // Create the slingshot
 const sling = Constraint.create({
-    pointA: { x: 150, y: 400 },
+    pointA: { x: 150, y: window.innerHeight - 200 },
     bodyB: ball,
     stiffness: 0.05,
     damping: 0.01,
@@ -57,8 +66,8 @@ const blockColors = ['#3498db', '#e67e22', '#2ecc71', '#9b59b6'];
 for (let i = 0; i < 4; i++) {
     for (let j = 0; j < 4 - i; j++) {
         const block = Bodies.rectangle(
-            500 + j * 50 + i * 25,
-            500 - i * 50,
+            window.innerWidth - 300 + j * 50 + i * 25,
+            window.innerHeight - 100 - i * 50,
             40,
             40,
             {
@@ -92,7 +101,7 @@ Events.on(mouseConstraint, 'enddrag', function(event) {
         // Calculate launch velocity based on drag distance
         const velocity = {
             x: (ball.position.x - 150) * 0.1,
-            y: (ball.position.y - 400) * 0.1
+            y: (ball.position.y - (window.innerHeight - 200)) * 0.1
         };
         Body.setVelocity(ball, velocity);
         
@@ -106,15 +115,18 @@ Events.on(mouseConstraint, 'enddrag', function(event) {
 // Reset game function
 const resetGame = () => {
     World.remove(world, ball);
-    const newBall = Bodies.circle(150, 400, 20, {
+    const newBall = Bodies.circle(150, window.innerHeight - 200, 20, {
         density: 0.004,
+        restitution: 0.6,
+        friction: 0.1,
         render: { fillStyle: '#e74c3c' }
     });
     
     const newSling = Constraint.create({
-        pointA: { x: 150, y: 400 },
+        pointA: { x: 150, y: window.innerHeight - 200 },
         bodyB: newBall,
         stiffness: 0.05,
+        damping: 0.01,
         length: 0
     });
     

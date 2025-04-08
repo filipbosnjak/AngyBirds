@@ -13,15 +13,45 @@
             align-items: center;
             min-height: 100vh;
             background-color: #87CEEB;
+            position: relative;
+            overflow: hidden;
+        }
+        .game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         canvas {
-            border: 2px solid #333;
-            background-color: #fff;
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: relative;
+            z-index: 2;
+        }
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            background-image: url('image.png');
+            background-size: cover;
+            background-position: center;
+            image-rendering: pixelated;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
+    <div class="game-container">
+        <div class="background"></div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="game.js"></script>
 </body>
