@@ -53,8 +53,8 @@ const ball = Bodies.circle(150, window.innerHeight - 200, 20, {
 const sling = Constraint.create({
     pointA: { x: 150, y: window.innerHeight - 200 },
     bodyB: ball,
-    stiffness: 0.05,
-    damping: 0.01,
+    stiffness: 0.01,
+    damping: 0.001,
     length: 0
 });
 
@@ -93,22 +93,83 @@ World.add(world, [ground, ball, sling, mouseConstraint, ...blocks]);
 
 // Keep track of whether the ball has been launched
 let ballLaunched = false;
+let initialPull = null;
 
-// Event listener for mouse release
+// Event listener for start drag
+Events.on(mouseConstraint, 'startdrag', function (event) {
+    if (event.body === ball) {
+        initialPull = null;
+    }
+});
+
+// Event listener for mouse drag
+Events.on(mouseConstraint, 'mousemove', function (event) {
+    if (!ballLaunched && mouseConstraint.body === ball) {
+        const anchorX = 150;
+        const anchorY = window.innerHeight - 200;
+
+        // Record initial pull direction if not set
+        if (!initialPull) {
+            initialPull = {
+                x: Math.sign(ball.position.x - anchorX),
+                y: Math.sign(ball.position.y - anchorY)
+            };
+        }
+
+        // Check if ball has crossed back over anchor point in opposite direction
+        const currentPull = {
+            x: Math.sign(ball.position.x - anchorX),
+            y: Math.sign(ball.position.y - anchorY)
+        };
+
+        if (initialPull && (initialPull.x !== 0 && initialPull.x !== currentPull.x)) {
+            // Ball has crossed back over anchor point, release it
+            ballLaunched = true;
+            const pullDistance = {
+                x: ball.position.x - anchorX,
+                y: ball.position.y - anchorY
+            };
+
+            // Calculate stretch distance
+            const stretchDistance = Math.sqrt(pullDistance.x * pullDistance.x + pullDistance.y * pullDistance.y);
+            // Linear scale factor proportional to stretch distance
+            const scaleFactor = Math.min(stretchDistance * 0.002, 0.3);
+
+            const velocity = {
+                x: -pullDistance.x * scaleFactor,
+                y: -pullDistance.y * scaleFactor
+            };
+
+            Body.setVelocity(ball, velocity);
+            World.remove(world, sling);
+            mouseConstraint.constraint.bodyB = null;
+        }
+    }
+});
+
+// Event listener for mouse release (as backup)
 Events.on(mouseConstraint, 'enddrag', function(event) {
     if (event.body === ball && !ballLaunched) {
         ballLaunched = true;
-        // Calculate launch velocity based on drag distance
-        const velocity = {
-            x: (ball.position.x - 150) * 0.1,
-            y: (ball.position.y - (window.innerHeight - 200)) * 0.1
+        const anchorX = 150;
+        const anchorY = window.innerHeight - 200;
+        const pullDistance = {
+            x: ball.position.x - anchorX,
+            y: ball.position.y - anchorY
         };
+
+        // Calculate stretch distance
+        const stretchDistance = Math.sqrt(pullDistance.x * pullDistance.x + pullDistance.y * pullDistance.y);
+        // Linear scale factor proportional to stretch distance
+        const scaleFactor = Math.min(stretchDistance * 0.002, 0.3);
+
+        const velocity = {
+            x: -pullDistance.x * scaleFactor,
+            y: -pullDistance.y * scaleFactor
+        };
+
         Body.setVelocity(ball, velocity);
-        
-        // Remove the slingshot constraint after launch
-        setTimeout(() => {
-            World.remove(world, sling);
-        }, 100);
+        World.remove(world, sling);
     }
 });
 
@@ -125,8 +186,8 @@ const resetGame = () => {
     const newSling = Constraint.create({
         pointA: { x: 150, y: window.innerHeight - 200 },
         bodyB: newBall,
-        stiffness: 0.05,
-        damping: 0.01,
+        stiffness: 0.01,
+        damping: 0.001,
         length: 0
     });
     
